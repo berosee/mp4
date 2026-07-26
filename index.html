@@ -179,7 +179,6 @@ songs.forEach((song, index) => {
 var player;
 
 function onYouTubeIframeAPIReady() {
-  // 1. 첫 곡이 유튜브인 경우에만 비디오 ID 지정
   const firstItem = songs[0];
   const initialVideoId = firstItem.type === 'youtube' ? firstItem.id : '';
 
@@ -188,7 +187,7 @@ function onYouTubeIframeAPIReady() {
     playerVars: { 
       rel: 0, 
       playsinline: 1,
-      autoplay: 0 
+      autoplay: 0 // 유튜브 자동재생 안 함
     },
     events: { 
       onReady: onPlayerReady,
@@ -198,12 +197,12 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerReady() {
-  // 2. 초기 로드 시 첫 번째 곡(index 0)을 화면에 올바르게 세팅
-  // (mp4면 유튜브 영역을 숨기고 MP4 플레이어를 띄워줍니다)
-  playByIndex(0);
+  // 두 번째 인자로 true를 넘겨서 '초기 로딩 시 자동재생 안 함'으로 설정
+  playByIndex(0, true);
 }
 
-function playByIndex(index) {
+// isInitialLoad 매개변수를 추가하여 첫 로딩 시 자동재생을 제어합니다.
+function playByIndex(index, isInitialLoad = false) {
   currentIndex = index;
   const item = songs[currentIndex];
 
@@ -215,10 +214,14 @@ function playByIndex(index) {
     }
     document.getElementById("player").style.display = "none";
 
-    // mp4 태그 노출 및 재생
+    // mp4 태그 노출 및 영상 소스 연결
     mp4Video.style.display = "block";
     mp4Video.src = item.url;
-    mp4Video.play();
+
+    // 첫 로딩이 아닐 때(사용자가 직접 리스트를 클릭했을 때)만 재생
+    if (!isInitialLoad) {
+      mp4Video.play();
+    }
   } 
   // 2. 유튜브 영상인 경우
   else {
@@ -226,17 +229,22 @@ function playByIndex(index) {
     mp4Video.pause();
     mp4Video.style.display = "none";
 
-    // 유튜브 태그 노출 및 재생
+    // 유튜브 태그 노출
     document.getElementById("player").style.display = "block";
     if (player && typeof player.loadVideoById === 'function') {
-      player.loadVideoById(item.id);
+      if (isInitialLoad) {
+        // 첫 로딩 시에는 재생하지 않고 비디오만 구동 준비(cue)
+        player.cueVideoById(item.id);
+      } else {
+        // 리스트 클릭 시에는 즉시 재생
+        player.loadVideoById(item.id);
+      }
     }
   }
 
   setActiveRow(index);
   updatePlayPauseButton();
 }
-
 // MP4 재생 종료 시 다음 곡으로 이동 이벤트
 mp4Video.onended = function() {
   playNext();
