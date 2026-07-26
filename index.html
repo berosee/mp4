@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta content='img.jpg' property='og:image'/>  
+  <title>duck2</title>
+
+  <style>
+    /* 기본 스타일 */
+    html, body {
+      font-family: 'Pretendard', Arial, sans-serif;
+      background: #f8f9fb;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 플레이어 영역 */
+    .player-box {
+      max-width: 720px;
+      width: 95%;
+      margin: 20px auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .player-ratio {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 비율 */
+      background: #000;
+    }
+
+    #player, #mp4Player {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #mp4Player {
+      display: none; /* 기본적으로 mp4 플레이어는 숨김 */
+      object-fit: contain;
+    }
+
+    /* 플레이리스트 테이블 */
+    table {
+      max-width: 720px;
+      width: 95%;
+      margin: 10px auto 20px;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    td {
+      position: relative;
+      padding: 12px 15px 12px 40px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      line-height: 1.4;
+      color: #333;
+      font-size: 15px;
+    }
+
+    tr:hover td {
+      background: #f9f9f9;
+    }
+
+    tr.active td {
+      background: #f4f8ff;
+      font-weight: bold;
+      color: #4a7cff;
+    }
+
+    tr.active td::before {
+      content: "▶";
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #4a7cff;
+    }
+
+    /* 하단 컨트롤러 */
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 50px;
+    }
+
+    .controls button {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 30px;
+      transition: 0.2s;
+    }
+
+    .controls button:hover {
+      background: #f1f1f1;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="player-box">
+  <div class="player-ratio">
+    <!-- 유튜브 플레이어 영역 -->
+    <div id="player"></div>
+    <!-- mp4 동영상 재생용 HTML5 video 태그 추가 -->
+    <video id="mp4Player" controls playsinline></video>
+  </div>
+</div>
+
+<table id="playlist"></table>
+
+<div class="controls">
+  <button id="btnPrev">⏮ 이전</button>
+  <button id="btnPlayPause">▶ 재생</button>
+  <button id="btnNext">⏭ 다음</button>
+</div>
+
+<script>
+/* 1. 단일 통합 데이터 정의 (type 항목을 통해 youtube / mp4 구분) */
+const songs = [
+  // 직접 만든 MP4 예시 (서버 경로 또는 파일 URL 입력)
+  { title: "🎬 https://rose3470.cafe24.com/mp4/junhyungjin", type: "mp4", url: "https://www.w3schools.com/html/mov_bbb.mp4" },
+  
+  // YouTube 예시
+  { title: "🎵 Green Green Grass of Home", type: "youtube", id: "uoo3P_xGYog" },
+  { title: "🎵 the house of the rising sun", type: "youtube", id: "GZqX8kg4rSQ" },
+  { title: "🎵 Cotton Fields (1969)", type: "youtube", id: "AlSjx6F5Pl8" },
+  { title: "🎵 Country Boots Music", type: "youtube", id: "eQXVFUc4eDw" },
+  { title: "🎵 Red River Valley", type: "youtube", id: "70PwqEHGlb4" },
+  { title: "🎵 Tennessee Waltz ( 1959 )", type: "youtube", id: "5GWDgirgsq4" },
+  { title: "🎵 Sunset Country Classic", type: "youtube", id: "XFKcH4446Vw" },
+  { title: "🎵 Take Me Home Country Roads", type: "youtube", id: "iK0vsVRWsww" },
+  { title: "🎵 Do That To Me One More Time", type: "youtube", id: "z_XfJyrNLRQ" },
+  { title: "🎵 클래식 컨트리 음악 플레이리스트 히트곡", type: "youtube", id: "QOmIkPyHfOE" },
+  { title: "🎵 Best Country Heartland Songs", type: "youtube", id: "8VO67jNHLpA" },
+  // Enka
+  { title: "🎵 린 - 인생외길", type: "youtube", id: "rfjffhNxdLQ" },
+  { title: "🎵 都はるみ 裏町ごころ", type: "youtube", id: "vnHDs5DlAG0" },
+  { title: "🎵 린 X 아즈마 아키", type: "youtube", id: "vgPvhr7ZWbw" },
+  { title: "🎵 雪中花 伍代夏子", type: "youtube", id: "B6WmSUodgRQ" },
+  // Jazz
+  { title: "🎷 번지없는 주막", type: "youtube", id: "Z9vzsUxvsEg" },
+  { title: "🎷 영시의 이별", type: "youtube", id: "29JJnC_L3OE" },
+  { title: "🎷 배호 모음집", type: "youtube", id: "dEc-U2hgd6A" },
+  { title: "🎷 꿈꾸는 백마강", type: "youtube", id: "50-PlZVG7aA" },
+  { title: "🎷 고향아줌마", type: "youtube", id: "6wvUMP1ZS7U" }
+];
+
+/* 2. 플레이리스트 화면 생성 */
+let currentIndex = 0;
+const table = document.getElementById("playlist");
+const mp4Video = document.getElementById("mp4Player");
+
+songs.forEach((song, index) => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${song.title}</td>`;
+  tr.onclick = () => playByIndex(index);
+  table.appendChild(tr);
+});
+
+/* 3. 유튜브 API 및 mp4 통합 제어 */
+var player;
+
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player("player", {
+    videoId: songs[0].type === 'youtube' ? songs[0].id : '',
+    playerVars: { 
+      rel: 0, 
+      playsinline: 1,
+      autoplay: 0 
+    },
+    events: { 
+      onReady: onPlayerReady,
+      onStateChange: onStateChange 
+    }
+  });
+}
+
+function onPlayerReady() {
+  setActiveRow(0);
+  // 첫 번째 항목이 mp4일 경우 초기 세팅
+  if (songs[0].type === 'mp4') {
+    playByIndex(0);
+  }
+}
+
+function playByIndex(index) {
+  currentIndex = index;
+  const item = songs[currentIndex];
+
+  // 1. MP4 파일인 경우
+  if (item.type === "mp4") {
+    // 유튜브 정지 및 숨김
+    if (player && typeof player.stopVideo === 'function') {
+      player.stopVideo();
+    }
+    document.getElementById("player").style.display = "none";
+
+    // mp4 태그 노출 및 재생
+    mp4Video.style.display = "block";
+    mp4Video.src = item.url;
+    mp4Video.play();
+  } 
+  // 2. 유튜브 영상인 경우
+  else {
+    // mp4 정지 및 숨김
+    mp4Video.pause();
+    mp4Video.style.display = "none";
+
+    // 유튜브 태그 노출 및 재생
+    document.getElementById("player").style.display = "block";
+    if (player && typeof player.loadVideoById === 'function') {
+      player.loadVideoById(item.id);
+    }
+  }
+
+  setActiveRow(index);
+  updatePlayPauseButton();
+}
+
+// MP4 재생 종료 시 다음 곡으로 이동 이벤트
+mp4Video.onended = function() {
+  playNext();
+};
+
+function playPrev() {
+  currentIndex = (currentIndex - 1 + songs.length) % songs.length;
+  playByIndex(currentIndex);
+}
+
+function playNext() {
+  currentIndex = (currentIndex + 1) % songs.length;
+  playByIndex(currentIndex);
+}
+
+function togglePlayPause() {
+  const item = songs[currentIndex];
+  
+  if (item.type === "mp4") {
+    if (mp4Video.paused) {
+      mp4Video.play();
+    } else {
+      mp4Video.pause();
+    }
+  } else {
+    const state = player.getPlayerState();
+    if (state === YT.PlayerState.PLAYING) {
+      player.pauseVideo();
+    } else {
+      player.playVideo();
+    }
+  }
+  updatePlayPauseButton();
+}
+
+function onStateChange(e) {
+  if (e.data === YT.PlayerState.ENDED) {
+    playNext();
+  }
+  updatePlayPauseButton();
+}
+
+function updatePlayPauseButton() {
+  const btn = document.getElementById("btnPlayPause");
+  const item = songs[currentIndex];
+
+  if (item.type === "mp4") {
+    btn.textContent = !mp4Video.paused ? "⏸ 일시정지" : "▶ 재생";
+  } else {
+    if (!player || typeof player.getPlayerState !== 'function') return;
+    const state = player.getPlayerState();
+    btn.textContent = state === YT.PlayerState.PLAYING ? "⏸ 일시정지" : "▶ 재생";
+  }
+}
+
+/* MP4 관련 상태 변화 시 버튼 텍스트 업데이트 */
+mp4Video.onplay = updatePlayPauseButton;
+mp4Video.onpause = updatePlayPauseButton;
+
+/* 버튼 이벤트 연결 */
+document.getElementById("btnPrev").addEventListener("click", playPrev);
+document.getElementById("btnNext").addEventListener("click", playNext);
+document.getElementById("btnPlayPause").addEventListener("click", togglePlayPause);
+</script>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
+</body>
+</html>
